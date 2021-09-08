@@ -3883,6 +3883,10 @@ spec:
             type: object
           spec:
             properties:
+              buckets:
+                items:
+                  type: string
+                type: array
               certConfig:
                 properties:
                   commonName:

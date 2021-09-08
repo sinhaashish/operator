@@ -1152,6 +1152,11 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
+	if err := c.createBuckets(ctx, tenant, tenantConfiguration); err != nil {
+		klog.V(2).Infof("Unable to create MinIO buckets: %v", err)
+		return err
+	}
+
 	// Finally, we update the status block of the Tenant resource to reflect the
 	// current state of the world
 	_, err = c.updateTenantStatus(ctx, tenant, StatusInitialized, totalReplicas)

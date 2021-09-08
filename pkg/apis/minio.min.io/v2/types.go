@@ -280,6 +280,11 @@ type TenantSpec struct {
 	Users []*corev1.LocalObjectReference `json:"users,omitempty"`
 	// *Optional* +
 	//
+	// Create buckets when creating a new tenant. Skip if bucket with given name already exists
+	// +optional
+	Buckets []string `json:"buckets,omitempty"`
+	// *Optional* +
+	//
 	// Enable JSON, Anonymous logging for MinIO tenants.
 	// +optional
 	Logging *Logging `json:"logging,omitempty"`

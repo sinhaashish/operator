@@ -48,6 +48,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/minio/madmin-go"
+	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
@@ -651,22 +652,9 @@ func (t *Tenant) NewMinIOAdmin(minioSecret map[string][]byte) (*madmin.AdminClie
 
 // NewMinIOAdminForAddress initializes a new madmin.Client for operator interaction
 func (t *Tenant) NewMinIOAdminForAddress(address string, minioSecret map[string][]byte) (*madmin.AdminClient, error) {
-	host := address
-	if host == "" {
-		host = t.MinIOServerHostAddress()
-		if host == "" {
-			return nil, errors.New("MinIO server host is empty")
-		}
-	}
-
-	accessKey, ok := minioSecret["accesskey"]
-	if !ok {
-		return nil, errors.New("MinIO server accesskey not set")
-	}
-
-	secretKey, ok := minioSecret["secretkey"]
-	if !ok {
-		return nil, errors.New("MinIO server secretkey not set")
+	host, accessKey, secretKey, err := t.getDetaislForClient(address, minioSecret)
+	if err != nil {
+		return nil, err
 	}
 
 	opts := &madmin.Options{
@@ -685,6 +673,55 @@ func (t *Tenant) NewMinIOAdminForAddress(address string, minioSecret map[string]
 	}
 
 	return madmClnt, nil
+}
+
+func (t *Tenant) getDetaislForClient(address string, minioSecret map[string][]byte) (string, []byte, []byte, error) {
+	host := address
+	if host == "" {
+		host = t.MinIOServerHostAddress()
+		if host == "" {
+			return "", nil, nil, errors.New("MinIO server host is empty")
+		}
+	}
+
+	accessKey, ok := minioSecret["accesskey"]
+	if !ok {
+		return "", nil, nil, errors.New("MinIO server accesskey not set")
+	}
+
+	secretKey, ok := minioSecret["secretkey"]
+	if !ok {
+		return "", nil, nil, errors.New("MinIO server secretkey not set")
+	}
+	return host, accessKey, secretKey, nil
+}
+
+// NewMinIOClient initializes a new minio.Client for operator interaction
+func (t *Tenant) NewMinIOClient(minioSecret map[string][]byte) (*minio.Client, error) {
+	return t.NewMinIOClientForAddress("", minioSecret)
+}
+
+// NewMinIOClientForAddress initializes a new minio.Client for operator interaction
+func (t *Tenant) NewMinIOClientForAddress(address string, minioSecret map[string][]byte) (*minio.Client, error) {
+	host, accessKey, secretKey, err := t.getDetaislForClient(address, minioSecret)
+	if err != nil {
+		return nil, err
+	}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	opts := &minio.Options{
+		Transport: tr,
+		Secure:    t.TLS(),
+		Creds:     credentials.NewStaticV4(string(accessKey), string(secretKey), ""),
+	}
+
+	minioClnt, err := minio.New(host, opts)
+	if err != nil {
+		return nil, err
+	}
+	return minioClnt, nil
 }
 
 // CreateUsers creates a list of admin users on MinIO, optionally creating users is disabled.
@@ -714,6 +751,28 @@ func (t *Tenant) CreateUsers(madmClnt *madmin.AdminClient, userCredentialSecrets
 		}
 		if err := madmClnt.SetPolicy(context.Background(), ConsoleAdminPolicyName, userAccessKey, false); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// CreateBuckets creates buckets and skips if bucket already present
+func (t *Tenant) CreateBuckets(minioClient *minio.Client, buckets []string) error {
+	// create buckets with a 20 seconds timeout
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
+	for _, bucketName := range buckets {
+		err := minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			// Check to see if we already own this bucket (which happens if you run this twice)
+			exists, errBucketExists := minioClient.BucketExists(ctx, bucketName)
+			if errBucketExists == nil && exists {
+				klog.V(2).Infof("Bucket  already exist %s", bucketName)
+			} else {
+				return errors.New("bucket creation failed")
+			}
+		} else {
+			klog.V(2).Infof("Successfully created  bucket %s\n", bucketName)
 		}
 	}
 	return nil
