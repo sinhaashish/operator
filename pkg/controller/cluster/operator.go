@@ -307,20 +307,19 @@ func (c *Controller) createUsers(ctx context.Context, tenant *miniov2.Tenant, te
 }
 
 func (c *Controller) createBuckets(ctx context.Context, tenant *miniov2.Tenant, tenantConfiguration map[string][]byte) error {
-	var buckets []string
-	buckets = append(buckets, tenant.Spec.Buckets...)
 	// get minio client
 	minioClnt, err := tenant.NewMinIOClient(tenantConfiguration)
+	tenant.HasLogEnabled()
 	if err != nil {
 		// show the error and continue
 		klog.Errorf("Error instantiating minio Client: %v", err.Error())
 	}
-
-	if err := tenant.CreateBuckets(minioClnt, buckets); err != nil {
-		klog.V(2).Infof("Unable to create MinIO buckets: %v", err)
-		return err
+	if !tenant.IsBucketCreated() {
+		if err := tenant.CreateBuckets(minioClnt, tenant.Spec.Buckets); err != nil {
+			klog.V(2).Infof("Unable to create MinIO buckets: %v", err)
+			return err
+		}
 	}
-
 	return nil
 }
 

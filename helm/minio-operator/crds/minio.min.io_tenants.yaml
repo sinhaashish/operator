@@ -3779,6 +3779,8 @@ spec:
               availableReplicas:
                 format: int32
                 type: integer
+              bucketCreated:
+                type: boolean
               certificates:
                 nullable: true
                 properties:
@@ -3844,6 +3846,7 @@ spec:
                 type: integer
             required:
             - availableReplicas
+            - bucketCreated
             - certificates
             - currentState
             - pools
@@ -3883,9 +3886,16 @@ spec:
             type: object
           spec:
             properties:
-              buckets:
+              bucket:
                 items:
-                  type: string
+                  properties:
+                    json:
+                      type: string
+                    ojectlock:
+                      type: boolean
+                    region:
+                      type: string
+                  type: object
                 type: array
               certConfig:
                 properties:
@@ -7651,6 +7661,8 @@ spec:
               availableReplicas:
                 format: int32
                 type: integer
+              bucketCreated:
+                type: boolean
               certificates:
                 nullable: true
                 properties:
@@ -7716,6 +7728,7 @@ spec:
                 type: integer
             required:
             - availableReplicas
+            - bucketCreated
             - certificates
             - currentState
             - pools

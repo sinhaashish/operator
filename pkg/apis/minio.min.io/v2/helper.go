@@ -532,6 +532,11 @@ func (t *Tenant) HasLogEnabled() bool {
 	return t.Spec.Log != nil
 }
 
+// IsBucketCreated checks if the bucket has been created
+func (t *Tenant) IsBucketCreated() bool {
+	return t.Status.BucketCreated
+}
+
 // HasPrometheusEnabled checks if Prometheus metrics has been enabled
 func (t *Tenant) HasPrometheusEnabled() bool {
 	return t.Spec.Prometheus != nil
@@ -757,22 +762,23 @@ func (t *Tenant) CreateUsers(madmClnt *madmin.AdminClient, userCredentialSecrets
 }
 
 // CreateBuckets creates buckets and skips if bucket already present
-func (t *Tenant) CreateBuckets(minioClient *minio.Client, buckets []string) error {
+func (t *Tenant) CreateBuckets(minioClient *minio.Client, buckets []*Bucket) error {
 	// create buckets with a 20 seconds timeout
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 	defer cancel()
-	for _, bucketName := range buckets {
-		err := minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+	for _, bucket := range buckets {
+		err := minioClient.MakeBucket(ctx, bucket.Name, minio.MakeBucketOptions{Region: bucket.Region, ObjectLocking: bucket.ObjectLocking})
 		if err != nil {
 			// Check to see if we already own this bucket (which happens if you run this twice)
-			exists, errBucketExists := minioClient.BucketExists(ctx, bucketName)
+			exists, errBucketExists := minioClient.BucketExists(ctx, bucket.Name)
 			if errBucketExists == nil && exists {
-				klog.V(2).Infof("Bucket  already exist %s", bucketName)
+				klog.V(2).Infof("Bucket  already exist %s", bucket.Name)
 			} else {
 				return errors.New("bucket creation failed")
 			}
 		} else {
-			klog.V(2).Infof("Successfully created  bucket %s\n", bucketName)
+			t.Status.BucketCreated = true
+			klog.V(2).Infof("Successfully created  bucket %s\n", bucket.Name)
 		}
 	}
 	return nil

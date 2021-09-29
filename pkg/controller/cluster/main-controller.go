@@ -1153,8 +1153,13 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	if err := c.createBuckets(ctx, tenant, tenantConfiguration); err != nil {
-		klog.V(2).Infof("Unable to create MinIO buckets: %v", err)
-		return err
+		klog.V(2).Infof(err.Error())
+		var err2 error
+		if _, err2 = c.updateTenantStatus(ctx, tenant, err.Error(), 0); err2 != nil {
+			klog.V(2).Infof(err2.Error())
+		}
+		// return nil so we don't re-queue this work item
+		return nil
 	}
 
 	// Finally, we update the status block of the Tenant resource to reflect the

@@ -282,7 +282,7 @@ type TenantSpec struct {
 	//
 	// Create buckets when creating a new tenant. Skip if bucket with given name already exists
 	// +optional
-	Buckets []string `json:"buckets,omitempty"`
+	Buckets []*Bucket `json:"bucket,omitempty"`
 	// *Optional* +
 	//
 	// Enable JSON, Anonymous logging for MinIO tenants.
@@ -301,6 +301,13 @@ type Logging struct {
 	JSON      bool `json:"json,omitempty"`
 	Anonymous bool `json:"anonymous,omitempty"`
 	Quiet     bool `json:"quiet,omitempty"`
+}
+
+// Bucket describes the default created buckets
+type Bucket struct {
+	Name          string `json:"json,omitempty"`
+	Region        string `json:"region,omitempty"`
+	ObjectLocking bool   `json:"ojectlock,omitempty"`
 }
 
 // ServiceMetadata (`serviceMetadata`) defines custom labels and annotations for the MinIO Object Storage service and/or MinIO Console service. +
@@ -417,6 +424,7 @@ type TenantStatus struct {
 	AvailableReplicas int32  `json:"availableReplicas"`
 	Revision          int32  `json:"revision"`
 	SyncVersion       string `json:"syncVersion"`
+	BucketCreated     bool   `json:"bucketCreated"`
 	// Keeps track of all the TLS certificates managed by the operator
 	// +nullable
 	Certificates CertificateStatus `json:"certificates"`
